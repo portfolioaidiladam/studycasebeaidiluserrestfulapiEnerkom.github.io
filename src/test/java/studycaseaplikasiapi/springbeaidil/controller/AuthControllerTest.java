@@ -7,19 +7,15 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import studycaseaplikasiapi.springbeaidil.entity.User;
 import studycaseaplikasiapi.springbeaidil.model.UserDTO;
 import studycaseaplikasiapi.springbeaidil.security.JwtUtil;
 import studycaseaplikasiapi.springbeaidil.service.CustomUserDetailsService;
 import studycaseaplikasiapi.springbeaidil.service.UserService;
-
-import java.util.ArrayList;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -36,9 +32,6 @@ public class AuthControllerTest {
 
     @MockBean
     private UserService userService;
-
-    @MockBean
-    private AuthenticationManager authenticationManager;
 
     @MockBean
     private CustomUserDetailsService userDetailsService;
@@ -84,11 +77,12 @@ public class AuthControllerTest {
         userDTO.setUsername("testuser");
         userDTO.setPassword("password");
 
-        UserDetails userDetails = new User("testuser", "password", new ArrayList<>());
-        Authentication auth = mock(Authentication.class);
-        when(auth.getPrincipal()).thenReturn(userDetails);
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(auth);
-        when(jwtUtil.generateToken(any(UserDetails.class))).thenReturn("test.jwt.token");
+        User user = new User();
+        user.setUsername("testuser");
+        user.setPassword("encodedPassword");
+
+        when(userService.loginUser(any(UserDTO.class))).thenReturn(user);
+        when(jwtUtil.generateToken(any())).thenReturn("test.jwt.token");
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -99,18 +93,32 @@ public class AuthControllerTest {
     }
 
     @Test
-    public void testLoginUser_Failure() throws Exception {
+    public void testLoginUser_UserNotFound() throws Exception {
         UserDTO userDTO = new UserDTO();
         userDTO.setUsername("testuser");
-        userDTO.setPassword("wrongpassword");
+        userDTO.setPassword("password");
 
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenThrow(new RuntimeException("Invalid username or password"));
+        when(userService.loginUser(any(UserDTO.class))).thenThrow(new UsernameNotFoundException("User not found"));
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(userDTO)))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("Invalid username or password"));
+                .andExpect(jsonPath("$.error").value("User not found"));
+    }
+
+    @Test
+    public void testLoginUser_InvalidPassword() throws Exception {
+        UserDTO userDTO = new UserDTO();
+        userDTO.setUsername("testuser");
+        userDTO.setPassword("wrongpassword");
+
+        when(userService.loginUser(any(UserDTO.class))).thenThrow(new BadCredentialsException("Invalid password"));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(userDTO)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Invalid password"));
     }
 }

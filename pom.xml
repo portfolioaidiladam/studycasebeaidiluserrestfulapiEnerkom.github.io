@@ -96,18 +96,6 @@
 					<useTestClasspath>false</useTestClasspath>
 				</configuration>
 			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<source>17</source>  <!-- Sesuaikan dengan versi Java Anda -->
-					<target>17</target>
-					<compilerArgs>
-						<arg>--add-modules</arg>
-						<arg>java.xml.bind</arg>
-					</compilerArgs>
-				</configuration>
-			</plugin>
 		</plugins>
 	</build>
 
